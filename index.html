@@ -4,11 +4,679 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRD Review — Multi-Persona Feedback Tool</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <style>body{background:#0C0C0E;color:#E8E6DF;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:40px}</style>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #F8F8F5;
+      --surface: #FFFFFF;
+      --border: #E4E4DF;
+      --border-hover: #C8C8C0;
+      --text: #1D1D1D;
+      --muted: #717171;
+      --teal: #28ADBB;
+      --teal-dark: #1E8F9B;
+      --teal-light: rgba(40,173,187,0.08);
+      --teal-mid: rgba(40,173,187,0.15);
+      --yellow: #F2C94C;
+      --yellow-dark: #1D1D1D;
+      --strength-bg: rgba(40,173,187,0.07); --strength-border: rgba(40,173,187,0.25); --strength-text: #1E8F9B;
+      --gap-bg: rgba(203,105,140,0.07); --gap-border: rgba(203,105,140,0.25); --gap-text: #CB698C;
+      --mitigation-bg: rgba(40,173,187,0.05); --mitigation-border: rgba(40,173,187,0.2); --mitigation-text: #28ADBB;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: 'Manrope', sans-serif; min-height: 100vh; overflow-x: hidden; }
+    .wrap { position:relative; z-index:1; max-width:860px; margin:0 auto; padding:0 32px; }
+
+    /* Header */
+    header { background:#FFFFFF; border-bottom:1px solid var(--border); padding:0; position:sticky; top:0; z-index:100; box-shadow:0 1px 0 var(--border); }
+    .header-inner { max-width:860px; margin:0 auto; padding:0 32px; display:flex; align-items:center; gap:16px; height:64px; }
+    .logo-mark { width:36px; height:36px; background:var(--yellow); border-radius:6px; display:flex; align-items:center; justify-content:center; font-family:'Manrope',sans-serif; font-size:14px; font-weight:800; color:#1D1D1D; letter-spacing:-0.03em; flex-shrink:0; }
+    .logo-divider { width:1px; height:24px; background:var(--border); }
+    .site-title { font-size:15px; font-weight:700; color:var(--text); letter-spacing:-0.01em; line-height:1; }
+    .site-title span { color:var(--teal); }
+    .site-subtitle { font-size:11px; color:var(--muted); margin-top:3px; font-weight:500; }
+
+    main { padding:48px 0 100px; display:flex; flex-direction:column; gap:40px; }
+
+    /* Section labels */
+    .section-label { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+    .label-num { font-family:'DM Mono',monospace; font-size:10px; color:var(--teal); letter-spacing:0.1em; border:1px solid rgba(40,173,187,0.3); padding:2px 8px; border-radius:20px; background:var(--teal-light); }
+    .label-text { font-size:11px; font-weight:700; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; }
+
+    /* API Key */
+    .apikey-wrap { display:flex; flex-direction:column; gap:10px; }
+    #api-key-input { width:100%; background:#fff; border:1.5px solid var(--border); border-radius:8px; color:var(--text); font-size:13px; padding:13px 18px; font-family:'DM Mono',monospace; letter-spacing:0.04em; transition:border-color 0.2s; }
+    #api-key-input:focus { outline:none; border-color:var(--teal); box-shadow:0 0 0 3px rgba(40,173,187,0.1); }
+    #api-key-input::placeholder { color:#BBBBBB; }
+    .apikey-hint { font-size:12px; color:var(--muted); font-weight:500; }
+    .apikey-hint a { color:var(--teal); text-decoration:none; }
+    .apikey-hint a:hover { text-decoration:underline; }
+
+    /* Textarea */
+    .textarea-wrap { border:1.5px solid var(--border); border-radius:10px; overflow:hidden; transition:border-color 0.2s; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+    .textarea-wrap:focus-within { border-color:var(--teal); box-shadow:0 0 0 3px rgba(40,173,187,0.1); }
+    textarea { width:100%; min-height:240px; background:transparent; border:none; color:var(--text); font-size:14px; line-height:1.8; padding:22px 24px; resize:vertical; font-family:'Manrope',sans-serif; font-weight:500; }
+    textarea:focus { outline:none; }
+    textarea::placeholder { color:#CCCCCC; line-height:1.8; }
+    .textarea-footer { display:flex; justify-content:space-between; align-items:center; padding:10px 16px; border-top:1px solid var(--border); background:#FAFAFA; }
+    .char-count { font-family:'DM Mono',monospace; font-size:11px; color:#BBBBBB; }
+    .textarea-footer-actions { display:flex; align-items:center; gap:8px; }
+    .btn-clear { background:none; border:1.5px solid var(--border); color:var(--muted); font-size:11px; font-weight:600; padding:5px 12px; border-radius:6px; cursor:pointer; font-family:'Manrope',sans-serif; transition:all 0.2s; }
+    .btn-clear:hover { border-color:var(--border-hover); color:var(--text); }
+    .btn-upload { display:flex; align-items:center; gap:5px; background:none; border:1.5px solid rgba(40,173,187,0.35); color:var(--teal); font-size:11px; font-weight:700; padding:5px 12px; border-radius:6px; cursor:pointer; font-family:'Manrope',sans-serif; transition:all 0.2s; }
+    .btn-upload:hover { background:var(--teal-light); border-color:var(--teal); }
+    #file-upload-input { display:none; }
+
+    /* Error */
+    .error-msg { margin-top:10px; padding:10px 16px; background:rgba(203,105,140,0.07); border:1px solid rgba(203,105,140,0.25); border-radius:6px; color:#CB698C; font-size:12px; font-family:'DM Mono',monospace; display:none; }
+
+    /* Persona grid */
+    .persona-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(155px,1fr)); gap:10px; }
+    .persona-card { display:flex; flex-direction:column; align-items:flex-start; gap:6px; padding:18px 16px 16px; border:1.5px solid var(--border); border-radius:10px; background:#fff; color:var(--text); cursor:pointer; text-align:left; transition:all 0.2s ease; position:relative; font-family:'Manrope',sans-serif; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+    .persona-card:hover { border-color:var(--teal); box-shadow:0 4px 12px rgba(40,173,187,0.12); transform:translateY(-2px); }
+    .persona-card:disabled { cursor:not-allowed; opacity:0.4; transform:none !important; box-shadow:none; }
+    .persona-icon { font-size:20px; line-height:1; }
+    .persona-label { font-size:13px; font-weight:700; letter-spacing:-0.01em; color:var(--text); }
+    .persona-subtitle { font-size:10px; font-weight:600; letter-spacing:0.02em; color:var(--muted); transition:color 0.2s; }
+    .persona-dot { position:absolute; top:12px; right:12px; width:7px; height:7px; border-radius:50%; display:none; }
+    .persona-badge { position:absolute; top:-8px; right:10px; font-family:'DM Mono',monospace; font-size:8px; letter-spacing:0.08em; padding:2px 7px; border-radius:10px; text-transform:uppercase; font-weight:700; }
+
+    /* Feedback section */
+    #feedback-section { display:none; animation:fadeUp 0.35s ease forwards; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(12px);} to{opacity:1;transform:translateY(0);} }
+    .feedback-card { border:1.5px solid var(--border); border-radius:12px; overflow:hidden; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+    .feedback-header { display:flex; align-items:center; gap:14px; padding:18px 24px; border-bottom:1px solid var(--border); background:#FAFAFA; }
+    .feedback-icon { font-size:22px; flex-shrink:0; }
+    .feedback-persona-name { font-size:17px; font-weight:800; letter-spacing:-0.02em; color:var(--text); }
+    .feedback-persona-title { font-size:11px; color:var(--muted); font-weight:600; margin-top:2px; }
+    .feedback-header-actions { margin-left:auto; display:flex; gap:8px; align-items:center; }
+    .btn-copy { background:none; border:1.5px solid var(--border); color:var(--muted); font-size:11px; font-weight:700; padding:6px 14px; border-radius:6px; cursor:pointer; font-family:'Manrope',sans-serif; transition:all 0.2s; display:none; }
+    .btn-copy:hover { border-color:var(--teal); color:var(--teal); }
+
+    .loading-state { padding:48px 28px; display:flex; flex-direction:column; align-items:center; gap:16px; }
+    .loading-dots { display:flex; gap:8px; }
+    .dot { width:8px; height:8px; border-radius:50%; animation:bounce 1.3s ease-in-out infinite; }
+    .dot:nth-child(2){animation-delay:0.18s;} .dot:nth-child(3){animation-delay:0.36s;}
+    @keyframes bounce { 0%,80%,100%{transform:translateY(0);opacity:0.4;} 40%{transform:translateY(-10px);opacity:1;} }
+    .loading-text { font-size:12px; font-weight:600; color:var(--muted); letter-spacing:0.04em; }
+
+    .feedback-body { padding:28px; display:none; }
+    .feedback-legend { display:flex; gap:14px; margin-bottom:24px; flex-wrap:wrap; padding:10px 14px; background:var(--bg); border-radius:8px; border:1px solid var(--border); }
+    .legend-item { display:flex; align-items:center; gap:6px; font-size:10px; font-weight:700; letter-spacing:0.06em; color:var(--muted); text-transform:uppercase; }
+    .legend-dot { width:8px; height:8px; border-radius:2px; flex-shrink:0; }
+
+    /* Feedback blocks */
+    .feedback-block { margin-bottom:6px; border-radius:8px; overflow:hidden; }
+    .block-strength { background:var(--strength-bg); border:1.5px solid var(--strength-border); }
+    .block-strength .block-tag { background:var(--teal); color:#fff; }
+    .block-strength .block-content { color:#1A6B73; }
+    .block-gap { background:var(--gap-bg); border:1.5px solid var(--gap-border); }
+    .block-gap .block-tag { background:var(--gap-text); color:#fff; }
+    .block-gap .block-content { color:#8B3054; }
+    .block-mitigation { background:#F0FBFC; border:1.5px solid var(--mitigation-border); margin-top:-2px; margin-bottom:14px; border-top:none; border-radius:0 0 8px 8px; padding:12px 16px 12px 42px; position:relative; }
+    .block-mitigation::before { content:'↳'; position:absolute; left:16px; top:12px; color:var(--teal); font-size:14px; opacity:0.7; }
+    .mitigation-label { font-size:9px; font-weight:800; letter-spacing:0.15em; text-transform:uppercase; color:var(--teal); opacity:0.8; margin-bottom:4px; }
+    .mitigation-text { font-size:13px; color:#1E8F9B; line-height:1.7; font-weight:500; }
+    .block-inner { display:flex; align-items:flex-start; gap:10px; padding:12px 14px; }
+    .block-tag { font-size:9px; font-weight:800; letter-spacing:0.1em; text-transform:uppercase; padding:3px 8px; border-radius:20px; flex-shrink:0; margin-top:3px; white-space:nowrap; }
+    .block-content { font-size:14px; line-height:1.7; font-weight:500; flex:1; }
+    .feedback-section-header { font-size:13px; font-weight:800; letter-spacing:0.02em; color:var(--text); margin:24px 0 10px; padding-bottom:8px; border-bottom:2px solid var(--teal-light); }
+    .feedback-section-header:first-child { margin-top:0; }
+    .feedback-para { font-size:14px; color:var(--muted); margin-bottom:10px; line-height:1.8; font-weight:500; }
+    .feedback-summary { font-size:14px; line-height:1.8; color:#444; margin-bottom:24px; padding:16px 20px; background:var(--teal-light); border-radius:8px; border-left:3px solid var(--teal); font-weight:500; }
+
+    /* PDF / export button */
+    .pdf-btn-wrap { margin-top:24px; padding-top:24px; border-top:1px solid var(--border); display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+    .btn-pdf { display:flex; align-items:center; gap:8px; background:var(--text); border:none; color:#fff; font-size:13px; font-weight:700; padding:12px 22px; border-radius:8px; cursor:pointer; font-family:'Manrope',sans-serif; letter-spacing:0.01em; transition:all 0.2s; }
+    .btn-pdf:hover { background:#333; transform:translateY(-1px); box-shadow:0 4px 12px rgba(0,0,0,0.15); }
+    .btn-pdf:disabled { opacity:0.4; cursor:not-allowed; transform:none; box-shadow:none; }
+    .pdf-hint { font-size:12px; color:var(--muted); font-weight:500; }
+
+    /* Quick switch */
+    .quick-switch { display:flex; align-items:center; gap:10px; margin-top:16px; flex-wrap:wrap; }
+    .quick-label { font-size:11px; font-weight:700; color:var(--muted); letter-spacing:0.06em; }
+    .btn-switch { background:#fff; border:1.5px solid; border-radius:6px; padding:5px 12px; font-size:11px; font-weight:700; letter-spacing:0.01em; cursor:pointer; font-family:'Manrope',sans-serif; transition:all 0.2s; }
+    .btn-switch:hover { opacity:0.75; transform:translateY(-1px); }
+
+    footer { text-align:center; padding:24px; color:#BBBBBB; font-size:11px; font-weight:600; letter-spacing:0.06em; border-top:1px solid var(--border); background:#fff; position:relative; z-index:1; }
+    @media (max-width:600px) { .wrap,.header-inner{padding:0 18px;} .persona-grid{grid-template-columns:1fr 1fr;} main{gap:32px;padding:32px 0 80px;} .feedback-body{padding:18px;} }
+  </style>
 </head>
 <body>
-<h1 style="color:#C9A84C">⏳ Update in progress</h1>
-<p style="color:#555;margin-top:16px">The full PRD Review Tool is being deployed. Please refresh in 60 seconds.</p>
+<header>
+  <div class="header-inner">
+    <div class="logo-mark">peek</div>
+    <div class="logo-divider"></div>
+    <div>
+      <h1 class="site-title">PRD <span>Review</span></h1>
+      <p class="site-subtitle">Multi-perspective feedback on your product documents</p>
+    </div>
+  </div>
+</header>
+<main>
+  <div class="wrap">
+
+    <section>
+      <div class="section-label"><span class="label-num">00</span><span class="label-text">Your Anthropic API Key</span></div>
+      <div class="apikey-wrap">
+        <input type="password" id="api-key-input" placeholder="sk-ant-api03-..." autocomplete="off" spellcheck="false"/>
+        <span class="apikey-hint">Get your key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> — stays in your browser, sent only to Anthropic.</span>
+      </div>
+      <div class="error-msg" id="apikey-error-msg"></div>
+    </section>
+
+    <section>
+      <div class="section-label"><span class="label-num">01</span><span class="label-text">Paste your PRD or Epic</span></div>
+      <div class="textarea-wrap">
+        <textarea id="prd-input" placeholder="Paste your PRD or Epic here...
+
+Example:
+## Epic: Onboarding Redesign
+Goal: Reduce time-to-value for new users from 14 days to 3 days.
+
+Problem Statement: New users struggle to complete setup within the first week,
+leading to 40% churn before activation..."></textarea>
+        <div class="textarea-footer">
+          <span class="char-count" id="char-count">0 characters</span>
+          <div class="textarea-footer-actions">
+            <input type="file" id="file-upload-input" accept=".txt,.md,.pdf,.docx,.doc" onchange="handleFileUpload(event)"/>
+            <button class="btn-upload" onclick="document.getElementById('file-upload-input').click()">⤒ Upload file</button>
+            <button class="btn-clear" onclick="clearAll()">Clear</button>
+          </div>
+        </div>
+      </div>
+      <div class="error-msg" id="error-msg"></div>
+    </section>
+
+    <section>
+      <div class="section-label"><span class="label-num">02</span><span class="label-text">Choose a reviewer perspective</span></div>
+      <div class="persona-grid" id="persona-grid"></div>
+    </section>
+
+    <section id="feedback-section">
+      <div class="section-label"><span class="label-num">03</span><span class="label-text">Feedback</span></div>
+      <div class="feedback-card" id="feedback-card">
+        <div class="feedback-header">
+          <span class="feedback-icon" id="fb-icon"></span>
+          <div>
+            <div class="feedback-persona-name" id="fb-name"></div>
+            <div class="feedback-persona-title" id="fb-title"></div>
+          </div>
+          <div class="feedback-header-actions">
+            <button class="btn-copy" id="btn-copy" onclick="copyFeedback()">⎘ Copy</button>
+          </div>
+        </div>
+        <div class="loading-state" id="loading-state">
+          <div class="loading-dots">
+            <span class="dot" id="dot1"></span><span class="dot" id="dot2"></span><span class="dot" id="dot3"></span>
+          </div>
+          <span class="loading-text" id="loading-text">Analyzing...</span>
+        </div>
+        <div class="feedback-body" id="feedback-body">
+          <div class="feedback-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#2D6A4F"></div> Strength</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#8B2635"></div> Gap / Concern</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#1A3A5C"></div> PM Mitigation</div>
+          </div>
+          <div id="feedback-content"></div>
+          <div class="pdf-btn-wrap" id="pdf-btn-wrap" style="display:none">
+            <button class="btn-pdf" id="btn-pdf" onclick="generatePDF()">
+              <span>⬇</span> Export as Product Announcement
+            </button>
+            <span class="pdf-hint">Generates a LinkedIn/CS-ready product announcement PDF</span>
+          </div>
+        </div>
+      </div>
+      <div class="quick-switch" id="quick-switch" style="display:none">
+        <span class="quick-label">Try another perspective →</span>
+      </div>
+    </section>
+
+  </div>
+</main>
+<footer>PRD Review Tool · Built for Peek · Powered by Claude</footer>
+
+<script>
+const PERSONAS = [
+  {
+    id:"clevel", icon:"◈", label:"C-Level Exec", title:"Chief Executive Lens",
+    color:"#C9A84C", bg:"#1A1400", accent:"#F5D878",
+    prompt:`You are a seasoned C-Level executive (CEO/CPO) reviewing a PRD or Epic. Respond ONLY in valid JSON, no markdown, no extra text. Return: {"summary":string,"sections":[{"title":string,"items":[{"type":"strength"|"gap","text":string,"mitigation":string|null}]}]}. Focus: business impact ROI, strategic alignment, resource allocation, business risks, what is NOT being said. 3-5 sections, 2-4 items each. For gaps always provide a mitigation string explaining how a PM should address or prepare for this concern.`
+  },
+  {
+    id:"engineer", icon:"⟨/⟩", label:"Engineer", title:"Engineering Perspective",
+    color:"#4CFFB3", bg:"#001A0E", accent:"#7FFFD4",
+    prompt:`You are a senior software engineer reviewing a PRD or Epic. Respond ONLY in valid JSON, no markdown, no extra text. Return: {"summary":string,"sections":[{"title":string,"items":[{"type":"strength"|"gap","text":string,"mitigation":string|null}]}]}. Focus: technical feasibility, ambiguities, edge cases, missing requirements, scope creep, API/data/infra implications, hidden dependencies. 3-5 sections, 2-4 items each. For gaps always provide a mitigation string explaining how a PM should address or prepare for this concern.`
+  },
+  {
+    id:"pm", icon:"⬡", label:"PM Colleague", title:"Product Manager Peer",
+    color:"#A78BFA", bg:"#0D0014", accent:"#C4B5FD",
+    prompt:`You are an experienced PM peer reviewing a colleague's PRD or Epic. Respond ONLY in valid JSON, no markdown, no extra text. Return: {"summary":string,"sections":[{"title":string,"items":[{"type":"strength"|"gap","text":string,"mitigation":string|null}]}]}. Focus: problem statement clarity, user stories quality, acceptance criteria, prioritization logic, success metrics, stakeholder alignment. 3-5 sections, 2-4 items each. For gaps always provide a mitigation string explaining how a PM should address or prepare for this concern.`
+  },
+  {
+    id:"cs", icon:"◎", label:"Customer Success", title:"Customer Success Lead",
+    color:"#FB923C", bg:"#1A0800", accent:"#FED7AA",
+    prompt:`You are a Customer Success Lead reviewing a PRD or Epic. Respond ONLY in valid JSON, no markdown, no extra text. Return: {"summary":string,"sections":[{"title":string,"items":[{"type":"strength"|"gap","text":string,"mitigation":string|null}]}]}. Focus: customer impact, onboarding and adoption complexity, support burden, pain points solved or ignored, real customer edge cases. 3-5 sections, 2-4 items each. For gaps always provide a mitigation string explaining how a PM should address or prepare for this concern.`
+  },
+  {
+    id:"pmm", icon:"◬", label:"Product Marketing", title:"PMM Lens",
+    color:"#F472B6", bg:"#1A0010", accent:"#FBCFE8",
+    badge:"New",
+    prompt:`You are a senior Product Marketing Manager reviewing a PRD or Epic. Your job is to evaluate how well this document sets up a successful go-to-market, launch, and customer adoption. Respond ONLY in valid JSON, no markdown, no extra text.
+
+Return: {"summary":string,"sections":[{"title":string,"items":[{"type":"strength"|"gap","text":string,"mitigation":string|null}]}]}
+
+Evaluate across these dimensions:
+1. Value Proposition Clarity — Is it crystal clear what problem this solves and why it matters? Is the "before vs after" story compelling?
+2. Target Audience & Persona — Is the ICP (ideal customer profile) well-defined? Who is this NOT for?
+3. Use Cases & Scenarios — Are there concrete, relatable use cases that illustrate real value delivery?
+4. Benefits vs Features — Does it lead with outcomes (saves time, reduces risk, increases revenue) or just list features?
+5. Differentiation & Positioning — Is it clear why this is better than alternatives or the status quo? Is there a clear positioning angle?
+6. Messaging & Simplicity — Can a non-technical customer understand this in one sentence? Is there a simple, repeatable narrative?
+7. Proof Points & Validation — Are there data, quotes, examples, or results that validate the need and the solution?
+8. Adoption & Discovery Strategy — How will users find out about this feature? Is onboarding and first-use considered?
+9. Objections & Friction — What might confuse or slow down adoption? Are concerns pre-addressed?
+10. Launch Readiness — Are the marketing assets, enablement materials, and customer communications considered?
+
+Be opinionated and direct. Flag any gap that would make a launch weak or messaging muddy. 4-6 sections, 2-4 items each. For every gap, provide a concrete mitigation explaining exactly what the PM should do or prepare.`
+  }
+];
+
+let currentFeedback = "", activePersonaId = null, isLoading = false, lastParsed = null, lastPersona = null;
+
+document.getElementById("prd-input").addEventListener("input", function() {
+  document.getElementById("char-count").textContent = this.value.length.toLocaleString() + " characters";
+});
+
+// Build persona cards
+const grid = document.getElementById("persona-grid");
+PERSONAS.forEach(p => {
+  const btn = document.createElement("button");
+  btn.className = "persona-card";
+  btn.id = "card-" + p.id;
+  btn.innerHTML = `
+    ${p.badge ? `<span class="persona-badge" style="background:${p.color}22;color:${p.color};border:1px solid ${p.color}44">${p.badge}</span>` : ''}
+    <span class="persona-icon" style="color:${p.color}">${p.icon}</span>
+    <span class="persona-label">${p.label}</span>
+    <span class="persona-subtitle" id="sub-${p.id}">${p.title}</span>
+    <span class="persona-dot" id="pdot-${p.id}" style="background:${p.color}"></span>
+  `;
+  btn.onclick = () => review(p);
+  grid.appendChild(btn);
+});
+
+// Build quick-switch
+const qsWrap = document.getElementById("quick-switch");
+PERSONAS.forEach(p => {
+  const btn = document.createElement("button");
+  btn.className = "btn-switch";
+  btn.id = "qs-" + p.id;
+  btn.style.borderColor = p.color + "55";
+  btn.style.color = p.color;
+  btn.textContent = p.icon + " " + p.label;
+  btn.onclick = () => review(p);
+  qsWrap.appendChild(btn);
+});
+
+function showErr(id, msg) { const e = document.getElementById(id); e.textContent = msg; e.style.display = "block"; }
+function hideErr(id) { document.getElementById(id).style.display = "none"; }
+
+async function review(persona) {
+  const apiKey = document.getElementById("api-key-input").value.trim();
+  const text = document.getElementById("prd-input").value.trim();
+  if (!apiKey) { showErr("apikey-error-msg", "Please enter your Anthropic API key."); document.getElementById("api-key-input").focus(); return; }
+  hideErr("apikey-error-msg");
+  if (!text) { showErr("error-msg", "Please paste your PRD or Epic content first."); document.getElementById("prd-input").focus(); return; }
+  hideErr("error-msg");
+  if (isLoading) return;
+
+  isLoading = true; activePersonaId = persona.id; currentFeedback = ""; lastParsed = null; lastPersona = persona;
+
+  PERSONAS.forEach(p => {
+    const c = document.getElementById("card-" + p.id);
+    c.disabled = true; c.removeAttribute("style");
+    document.getElementById("pdot-" + p.id).style.display = "none";
+    const s = document.getElementById("sub-" + p.id);
+    s.textContent = p.title; s.style.color = "";
+  });
+
+  const ac = document.getElementById("card-" + persona.id);
+  ac.style.borderColor = persona.color;
+  ac.style.background = "linear-gradient(135deg," + persona.bg + " 0%,#111 100%)";
+  ac.style.boxShadow = "0 0 28px " + persona.color + "18";
+  ac.style.transform = "translateY(-2px)";
+  const as = document.getElementById("sub-" + persona.id);
+  as.textContent = "Analyzing..."; as.style.color = persona.accent;
+
+  document.getElementById("fb-icon").textContent = persona.icon;
+  document.getElementById("fb-icon").style.color = persona.color;
+  document.getElementById("fb-name").textContent = persona.label;
+  document.getElementById("fb-name").style.color = persona.color;
+  document.getElementById("fb-title").textContent = persona.title;
+  document.getElementById("feedback-card").style.borderColor = persona.color + "44";
+  document.getElementById("feedback-card").style.boxShadow = "0 0 48px " + persona.color + "0A";
+  document.getElementById("btn-copy").style.display = "none";
+  document.getElementById("pdf-btn-wrap").style.display = "none";
+  ["dot1","dot2","dot3"].forEach(d => document.getElementById(d).style.background = persona.color);
+  document.getElementById("loading-text").textContent = "Reviewing from " + persona.label + " perspective...";
+
+  const section = document.getElementById("feedback-section");
+  section.style.display = "block";
+  document.getElementById("loading-state").style.display = "flex";
+  document.getElementById("feedback-body").style.display = "none";
+  document.getElementById("quick-switch").style.display = "none";
+  setTimeout(() => section.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+      body: JSON.stringify({ model: "claude-opus-4-5", max_tokens: 2000, messages: [{ role: "user", content: persona.prompt + "\n\nHere is the PRD/Epic to review:\n\n" + text }] })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error((data.error && data.error.message) || "HTTP " + res.status);
+    const rawText = (data.content || []).map(b => b.text || "").join("\n");
+    currentFeedback = rawText;
+    let parsed;
+    try { const clean = rawText.replace(/```json|```/g, "").trim(); parsed = JSON.parse(clean); } catch(e) { parsed = null; }
+    lastParsed = parsed;
+    renderFeedback(parsed, rawText, persona);
+  } catch(err) {
+    renderFallback("Error: " + err.message, persona);
+  } finally {
+    isLoading = false;
+    PERSONAS.forEach(p => {
+      document.getElementById("card-" + p.id).disabled = false;
+      const s = document.getElementById("sub-" + p.id);
+      s.textContent = p.title;
+      if (p.id !== activePersonaId) { document.getElementById("card-" + p.id).removeAttribute("style"); s.style.color = ""; }
+    });
+    document.getElementById("pdot-" + activePersonaId).style.display = "block";
+  }
+}
+
+function renderFeedback(parsed, rawText, persona) {
+  const content = document.getElementById("feedback-content");
+  content.innerHTML = "";
+  if (!parsed || !parsed.sections) { renderFallback(rawText, persona); return; }
+
+  if (parsed.summary) {
+    const s = document.createElement("p");
+    s.className = "feedback-summary";
+    s.style.borderLeft = "3px solid " + persona.color;
+    s.textContent = parsed.summary;
+    content.appendChild(s);
+  }
+
+  parsed.sections.forEach(section => {
+    const h = document.createElement("div");
+    h.className = "feedback-section-header";
+    h.style.color = persona.accent;
+    h.textContent = section.title;
+    content.appendChild(h);
+
+    (section.items || []).forEach(item => {
+      const isStr = item.type === "strength", isGap = item.type === "gap";
+      const block = document.createElement("div");
+      block.className = "feedback-block " + (isStr ? "block-strength" : isGap ? "block-gap" : "");
+      const inner = document.createElement("div"); inner.className = "block-inner";
+      const tag = document.createElement("span"); tag.className = "block-tag"; tag.textContent = isStr ? "✓ Strength" : "✗ Gap";
+      const txt = document.createElement("span"); txt.className = "block-content"; txt.textContent = item.text;
+      inner.appendChild(tag); inner.appendChild(txt); block.appendChild(inner); content.appendChild(block);
+      if (isGap && item.mitigation) {
+        const mit = document.createElement("div"); mit.className = "block-mitigation";
+        mit.innerHTML = `<div class="mitigation-label">💡 PM Mitigation</div><div class="mitigation-text">${esc(item.mitigation)}</div>`;
+        content.appendChild(mit);
+      }
+    });
+  });
+
+  document.getElementById("loading-state").style.display = "none";
+  document.getElementById("feedback-body").style.display = "block";
+  document.getElementById("btn-copy").style.display = "flex";
+  document.getElementById("pdf-btn-wrap").style.display = "flex";
+
+  const qs = document.getElementById("quick-switch"); qs.style.display = "flex";
+  PERSONAS.forEach(p => {
+    const b = document.getElementById("qs-" + p.id);
+    b.style.display = p.id === persona.id ? "none" : "inline-flex";
+    b.disabled = false;
+  });
+}
+
+function renderFallback(text, persona) {
+  const content = document.getElementById("feedback-content"); content.innerHTML = "";
+  const p = document.createElement("p"); p.className = "feedback-para"; p.textContent = text; content.appendChild(p);
+  document.getElementById("loading-state").style.display = "none";
+  document.getElementById("feedback-body").style.display = "block";
+  document.getElementById("btn-copy").style.display = "flex";
+  const qs = document.getElementById("quick-switch"); qs.style.display = "flex";
+  PERSONAS.forEach(p2 => {
+    const b = document.getElementById("qs-" + p2.id);
+    b.style.display = p2.id === (lastPersona && lastPersona.id) ? "none" : "inline-flex";
+    b.disabled = false;
+  });
+}
+
+function esc(s) { return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+function copyFeedback() {
+  if (!currentFeedback) return;
+  navigator.clipboard.writeText(currentFeedback).then(() => {
+    const b = document.getElementById("btn-copy"); b.textContent = "✓ Copied";
+    setTimeout(() => b.textContent = "⎘ Copy", 1800);
+  });
+}
+
+// ─── PDF Generation ────────────────────────────────────────────────
+async function generatePDF() {
+  const btn = document.getElementById("btn-pdf");
+  btn.disabled = true; btn.textContent = "⏳ Generating...";
+
+  try {
+    const apiKey = document.getElementById("api-key-input").value.trim();
+    const prdText = document.getElementById("prd-input").value.trim();
+    const persona = lastPersona;
+    const parsed = lastParsed;
+
+    // ── Step 1: Generate marketing copy via Claude
+    btn.innerHTML = "<span>✦</span> Writing your announcement...";
+    const pmmSummary = parsed ? (parsed.summary || "") : currentFeedback.substring(0, 1000);
+    const pmmSections = parsed && parsed.sections ? parsed.sections.map(s =>
+      s.title + ":\n" + (s.items||[]).map(i => "- " + i.text).join("\n")
+    ).join("\n\n") : "";
+
+    const marketingPrompt = `You are a senior product marketer. Based on the PRD/Epic below and the PMM feedback, write a polished product announcement document — the kind you'd share on LinkedIn or send to a customer success team to promote a new feature.
+
+Structure it like a real product announcement:
+1. A punchy headline (e.g. "Your [X] Just Got Smarter.")
+2. A one-line subtitle/tagline
+3. A 2-3 sentence intro paragraph explaining what it is and why it matters
+4. A "What Is [Feature Name]?" section — clear, benefit-led, 2-3 sentences
+5. 2-3 key results or value props (with bold metrics if you can infer them, or compelling outcomes)
+6. A "How It Works" or "What You Get" section — 3-4 short bullet points
+7. A closing call-to-action paragraph
+
+Tone: confident, customer-facing, benefit-led. Lead with outcomes not features. Write in plain English that a non-technical reader can understand. NO markdown headers with #. Use plain section titles followed by a line break. Keep the total length to about 400-500 words.
+
+Return ONLY the announcement text, no JSON, no preamble.
+
+PRD/EPIC:
+${prdText.substring(0, 3000)}
+
+PMM FEEDBACK SUMMARY:
+${pmmSummary}
+
+PMM KEY INSIGHTS:
+${pmmSections.substring(0, 2000)}`;
+
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+      body: JSON.stringify({ model: "claude-opus-4-5", max_tokens: 1200, messages: [{ role: "user", content: marketingPrompt }] })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error((data.error && data.error.message) || "HTTP " + res.status);
+    const marketingCopy = (data.content || []).map(b => b.text || "").join("\n").trim();
+
+    // ── Step 2: Render to PDF
+    btn.innerHTML = "<span>⬇</span> Building PDF...";
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 20;
+    const contentW = pageW - margin * 2;
+    let y = margin;
+
+    function checkPage(needed = 10) {
+      if (y + needed > pageH - margin - 10) { doc.addPage(); y = margin; }
+    }
+
+    // ── Brand header bar
+    doc.setFillColor(15, 15, 18);
+    doc.rect(0, 0, pageW, 12, "F");
+    doc.setFontSize(7); doc.setFont("helvetica","normal"); doc.setTextColor(80,78,70);
+    doc.text("PRODUCT ANNOUNCEMENT  ·  Generated by PRD Review Tool  ·  " + new Date().toLocaleDateString("en-US", {year:"numeric",month:"long",day:"numeric"}), margin, 8);
+    y = 22;
+
+    // ── Parse and render marketing copy sections
+    const paragraphs = marketingCopy.split(/\n\n+/);
+    let isFirstPara = true;
+
+    for (const para of paragraphs) {
+      const trimmed = para.trim();
+      if (!trimmed) continue;
+      const lines = trimmed.split("\n");
+
+      // Detect headline (first paragraph, short, punchy)
+      if (isFirstPara) {
+        isFirstPara = false;
+        // Big headline
+        doc.setFontSize(22); doc.setFont("helvetica","bold"); doc.setTextColor(20,20,24);
+        const headLines = doc.splitTextToSize(trimmed, contentW);
+        headLines.forEach(l => { checkPage(12); doc.text(l, margin, y); y += 10; });
+        y += 4;
+        // Blue accent line under headline
+        doc.setDrawColor(30,100,200); doc.setLineWidth(1.2);
+        doc.line(margin, y, margin + 40, y); y += 8;
+        continue;
+      }
+
+      // Detect subtitle/tagline (second para, short, italic-style)
+      if (paragraphs.indexOf(para) === 1 && trimmed.length < 120) {
+        doc.setFontSize(12); doc.setFont("helvetica","normal"); doc.setTextColor(60,100,180);
+        const subLines = doc.splitTextToSize(trimmed, contentW);
+        subLines.forEach(l => { checkPage(8); doc.text(l, margin, y); y += 6.5; });
+        y += 6;
+        continue;
+      }
+
+      // Detect section header (short line followed by content, or all-caps-ish)
+      const isSectionHeader = lines.length === 1 && trimmed.length < 60 && !trimmed.startsWith("-") && !trimmed.startsWith("•") && (trimmed.endsWith("?") || /^[A-Z][A-Za-z\s&:—–-]{5,50}$/.test(trimmed));
+
+      if (isSectionHeader) {
+        y += 4;
+        checkPage(12);
+        doc.setFontSize(11); doc.setFont("helvetica","bold"); doc.setTextColor(30,100,200);
+        doc.text(trimmed, margin, y); y += 5;
+        doc.setDrawColor(200,220,255); doc.setLineWidth(0.4);
+        doc.line(margin, y, pageW - margin, y); y += 6;
+        continue;
+      }
+
+      // Bullet list
+      if (lines.every(l => l.trim().startsWith("-") || l.trim().startsWith("•") || l.trim().startsWith("·"))) {
+        for (const line of lines) {
+          const text = line.replace(/^[-•·]\s*/, "").trim();
+          if (!text) continue;
+          checkPage(8);
+          // Bullet dot
+          doc.setFillColor(30,100,200); doc.circle(margin + 2, y - 1.5, 1, "F");
+          doc.setFontSize(10); doc.setFont("helvetica","normal"); doc.setTextColor(40,40,50);
+          const bLines = doc.splitTextToSize(text, contentW - 8);
+          bLines.forEach((bl, bi) => { checkPage(6); doc.text(bl, margin + 6, y + bi * 5); });
+          y += bLines.length * 5 + 2;
+        }
+        y += 3;
+        continue;
+      }
+
+      // Detect bold metrics lines (contains % or numbers + strong outcome words)
+      const isMetric = /\d+%|\d+ (days?|hours?|x |times?|minutes?)/.test(trimmed) && trimmed.length < 100;
+      if (isMetric) {
+        checkPage(10);
+        doc.setFillColor(240, 246, 255);
+        const mLines = doc.splitTextToSize(trimmed, contentW - 10);
+        const boxH = mLines.length * 5.5 + 8;
+        doc.roundedRect(margin, y - 2, contentW, boxH, 2, 2, "F");
+        doc.setFontSize(10); doc.setFont("helvetica","bold"); doc.setTextColor(20,70,160);
+        mLines.forEach((ml, mi) => { doc.text(ml, margin + 5, y + 4 + mi * 5.5); });
+        y += boxH + 4;
+        continue;
+      }
+
+      // Regular body paragraph
+      doc.setFontSize(10); doc.setFont("helvetica","normal"); doc.setTextColor(50,50,60);
+      const bodyLines = doc.splitTextToSize(trimmed, contentW);
+      bodyLines.forEach(l => { checkPage(6); doc.text(l, margin, y); y += 5.5; });
+      y += 4;
+    }
+
+    // ── Footer bar
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFillColor(245,247,250);
+      doc.rect(0, pageH - 12, pageW, 12, "F");
+      doc.setFontSize(7); doc.setFont("helvetica","normal"); doc.setTextColor(140,140,150);
+      doc.text("PRD Review Tool · Powered by Claude · Page " + i + " of " + totalPages, pageW / 2, pageH - 5, { align: "center" });
+    }
+
+    const filename = "product-announcement-" + new Date().toISOString().slice(0,10) + ".pdf";
+    doc.save(filename);
+  } catch(err) {
+    alert("Export failed: " + err.message);
+  } finally {
+    btn.disabled = false; btn.innerHTML = "<span>⬇</span> Export as PDF";
+  }
+}
+
+function handleFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const textarea = document.getElementById("prd-input");
+    textarea.value = e.target.result;
+    document.getElementById("char-count").textContent = e.target.result.length.toLocaleString() + " characters";
+  };
+  // For text-based files read as text
+  if (file.type === "application/pdf") {
+    // PDF: read as text (basic extraction — works for text-based PDFs)
+    reader.readAsText(file);
+  } else {
+    reader.readAsText(file);
+  }
+  // Reset input so same file can be re-uploaded
+  event.target.value = "";
+}
+
+function clearAll() {
+  document.getElementById("prd-input").value = "";
+  document.getElementById("char-count").textContent = "0 characters";
+  document.getElementById("feedback-section").style.display = "none";
+  hideErr("error-msg");
+  currentFeedback = ""; activePersonaId = null; lastParsed = null; lastPersona = null;
+  PERSONAS.forEach(p => {
+    document.getElementById("card-" + p.id).removeAttribute("style");
+    document.getElementById("pdot-" + p.id).style.display = "none";
+    const s = document.getElementById("sub-" + p.id); s.textContent = p.title; s.style.color = "";
+  });
+}
+</script>
 </body>
 </html>
